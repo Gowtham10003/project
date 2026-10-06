@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Disaster Early-Warning Agent</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+
+    <div class="logo">
+        <div class="logo-icon">⚠</div>
+
+        <div>
+            <h2>DisasterGuard</h2>
+            <span>Early-Warning Agent</span>
+        </div>
+    </div>
+
+
+    <nav>
+
+        <a href="#dashboard" class="nav-link active">
+            <span>▦</span>
+            Dashboard
+        </a>
+
+        <a href="#monitoring" class="nav-link">
+            <span>◉</span>
+            Monitoring
+        </a>
+
+        <a href="#alerts" class="nav-link">
+            <span>⚠</span>
+            Alerts
+        </a>
+
+        <a href="#history" class="nav-link">
+            <span>↗</span>
+            History
+        </a>
+
+        <a href="#about" class="nav-link">
+            <span>ⓘ</span>
+            About
+        </a>
+
+    </nav>
+
+
+    <div class="sidebar-bottom">
+
+        <div class="connection-status">
+            <span id="sidebarStatusDot"></span>
+
+            <div>
+                <strong id="sidebarStatus">
+                    Backend Offline
+                </strong>
+
+                <small>
+                    Java API
+                </small>
+            </div>
+        </div>
+
+    </div>
+
+</aside>
+
+
+<!-- MAIN -->
+
+<div class="main">
+
+    <!-- HEADER -->
+
+    <header class="topbar">
+
+        <div>
+
+            <h1>Disaster Monitoring Dashboard</h1>
+
+            <p>
+                Real-time simulated environmental risk analysis
+            </p>
+
+        </div>
+
+
+        <div class="top-actions">
+
+            <div class="online-status">
+
+                <span id="statusDot"></span>
+
+                <span id="systemStatus">
+                    SYSTEM OFFLINE
+                </span>
+
+            </div>
+
+            <button
+                class="profile-button"
+                title="Project"
+            >
+                DA
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <!-- DASHBOARD -->
+
+    <main id="dashboard" class="content">
+
+
+        <!-- CONTROL BAR -->
+
+        <section class="control-bar">
+
+            <div>
+
+                <span class="section-label">
+                    MONITORING CONTROL
+                </span>
+
+                <h2>
+                    Environmental Monitoring
+                </h2>
+
+            </div>
+
+
+            <div class="controls">
+
+                <button
+                    id="startBtn"
+                    class="btn btn-primary"
+                    onclick="startMonitoring()"
+                >
+                    ▶ Start Monitoring
+                </button>
+
+                <button
+                    id="stopBtn"
+                    class="btn btn-danger"
+                    onclick="stopMonitoring()"
+                    disabled
+                >
+                    ■ Stop
+                </button>
+
+                <button
+                    class="btn btn-secondary"
+                    onclick="resetDashboard()"
+                >
+                    ↻ Reset
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- RISK OVERVIEW -->
+
+        <section class="risk-overview">
+
+
+            <div class="risk-main-card">
+
+                <div class="card-header">
+
+                    <div>
+
+                        <span class="section-label">
+                            CURRENT RISK
+                        </span>
+
+                        <h2>
+                            Overall Risk Status
+                        </h2>
+
+                    </div>
+
+                    <span class="live-badge">
+                        ● LIVE
+                    </span>
+
+                </div>
+
+
+                <div class="risk-main-content">
+
+                    <div
+                        id="riskCircle"
+                        class="risk-circle"
+                    >
+
+                        <span id="riskLevel">
+                            WAITING
+                        </span>
+
+                    </div>
+
+
+                    <div class="risk-details">
+
+                        <div class="score-title">
+                            Risk Score
+                        </div>
+
+                        <div
+                            id="riskScore"
+                            class="big-score"
+                        >
+                            --
+                        </div>
+
+
+                        <div class="progress-container">
+
+                            <div
+                                id="riskProgress"
+                                class="progress-bar"
+                            ></div>
+
+                        </div>
+
+
+                        <p id="riskDescription">
+                            Start monitoring to analyze
+                            environmental conditions.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- CRITICAL SENSOR -->
+
+            <div class="critical-card">
+
+                <span class="section-label">
+                    HIGHEST-RISK SENSOR
+                </span>
+
+                <div class="critical-icon">
+                    📍
+                </div>
+
+                <h2 id="sensorId">
+                    --
+                </h2>
+
+                <p id="sensorLocation">
+                    No sensor selected
+                </p>
+
+
+                <div class="critical-divider"></div>
+
+
+                <div class="critical-row">
+
+                    <span>Status</span>
+
+                    <strong id="criticalStatus">
+                        Waiting
+                    </strong>
+
+                </div>
+
+
+                <div class="critical-row">
+
+                    <span>Last Update</span>
+
+                    <strong id="lastUpdate">
+                        --
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ENVIRONMENTAL DATA -->
+
+        <section id="monitoring">
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="section-label">
+                        ENVIRONMENTAL DATA
+                    </span>
+
+                    <h2>
+                        Current Readings
+                    </h2>
+
+                </div>
+
+            </div>
+
+
+            <div class="data-grid">
+
+
+                <div class="data-card temperature">
+
+                    <div class="data-card-top">
+
+                        <div class="data-icon">
+                            🌡
+                        </div>
+
+                        <span class="data-status">
+                            Temperature
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        id="temperature"
+                        class="data-value"
+                    >
+                        -- °C
+                    </div>
+
+                    <span class="data-label">
+                        Temperature
+                    </span>
+
+                </div>
+
+
+                <div class="data-card rainfall">
+
+                    <div class="data-card-top">
+
+                        <div class="data-icon">
+                            🌧
+                        </div>
+
+                        <span class="data-status">
+                            Rainfall
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        id="rainfall"
+                        class="data-value"
+                    >
+                        -- mm
+                    </div>
+
+                    <span class="data-label">
+                        Rainfall
+                    </span>
+
+                </div>
+
+
+                <div class="data-card water">
+
+                    <div class="data-card-top">
+
+                        <div class="data-icon">
+                            💧
+                        </div>
+
+                        <span class="data-status">
+                            Water Level
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        id="waterLevel"
+                        class="data-value"
+                    >
+                        -- %
+                    </div>
+
+                    <span class="data-label">
+                        Water Level
+                    </span>
+
+                </div>
+
+
+                <div class="data-card wind">
+
+                    <div class="data-card-top">
+
+                        <div class="data-icon">
+                            💨
+                        </div>
+
+                        <span class="data-status">
+                            Wind Speed
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        id="windSpeed"
+                        class="data-value"
+                    >
+                        -- km/h
+                    </div>
+
+                    <span class="data-label">
+                        Wind Speed
+                    </span>
+
+                </div>
+
+
+            </div>
+
+        </section>
+
+
+        <!-- SENSOR NETWORK -->
+
+        <section class="network-section">
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="section-label">
+                        SENSOR NETWORK
+                    </span>
+
+                    <h2>
+                        Connected Monitoring Points
+                    </h2>
+
+                </div>
+
+            </div>
+
+
+            <div class="network-card">
+
+                <div class="network-node">
+
+                    <div
+                        id="nodeS1"
+                        class="node-circle"
+                    >
+                        S1
+                    </div>
+
+                    <strong>
+                        Main Road
+                    </strong>
+
+                    <span>
+                        Sensor S1
+                    </span>
+
+                </div>
+
+
+                <div class="network-line"></div>
+
+
+                <div class="network-node">
+
+                    <div
+                        id="nodeS2"
+                        class="node-circle"
+                    >
+                        S2
+                    </div>
+
+                    <strong>
+                        River Area
+                    </strong>
+
+                    <span>
+                        Sensor S2
+                    </span>
+
+                </div>
+
+
+                <div class="network-line"></div>
+
+
+                <div class="network-node">
+
+                    <div
+                        id="nodeS3"
+                        class="node-circle"
+                    >
+                        S3
+                    </div>
+
+                    <strong>
+                        Village Area
+                    </strong>
+
+                    <span>
+                        Sensor S3
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ALERT -->
+
+        <section id="alerts">
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="section-label">
+                        ALERT SYSTEM
+                    </span>
+
+                    <h2>
+                        Current Alert
+                    </h2>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="alertBox"
+                class="alert-box normal"
+            >
+
+                <div class="alert-icon">
+                    ✓
+                </div>
+
+                <div>
+
+                    <strong>
+                        System Ready
+                    </strong>
+
+                    <p>
+                        Start monitoring to receive
+                        disaster-risk alerts.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- HISTORY -->
+
+        <section id="history">
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="section-label">
+                        MONITORING HISTORY
+                    </span>
+
+                    <h2>
+                        Recent Risk Events
+                    </h2>
+
+                </div>
+
+                <span class="history-count">
+                    Latest 10 readings
+                </span>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>TIME</th>
+
+                            <th>SENSOR</th>
+
+                            <th>LOCATION</th>
+
+                            <th>SCORE</th>
+
+                            <th>RISK LEVEL</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="historyTable">
+
+                        <tr>
+
+                            <td
+                                colspan="5"
+                                class="empty-history"
+                            >
+                                No monitoring data yet.
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- ABOUT -->
+
+        <section
+            id="about"
+            class="about-section"
+        >
+
+            <div>
+
+                <span class="section-label">
+                    ABOUT PROJECT
+                </span>
+
+                <h2>
+                    Disaster Early-Warning Agent
+                </h2>
+
+                <p>
+                    This project demonstrates an automated
+                    disaster-risk detection system using
+                    simulated environmental data.
+                    Java performs sensor-network processing
+                    and rule-based analysis, while Python
+                    classifies the risk level.
+                </p>
+
+            </div>
+
+
+            <div class="technology-list">
+
+                <span>Java</span>
+
+                <span>Python</span>
+
+                <span>HTML</span>
+
+                <span>CSS</span>
+
+                <span>JavaScript</span>
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+
+    <!-- FOOTER -->
+
+    <footer>
+
+        <span>
+            Disaster Early-Warning Agent
+        </span>
+
+        <span>
+            Java + Python + Web Dashboard
+        </span>
+
+        <span>
+            Simulated Environmental Data
+        </span>
+
+    </footer>
+
+</div>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
