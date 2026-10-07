@@ -1,15 +1,146 @@
+// ==========================================
+// DISASTER EARLY-WARNING AGENT
+// FRONTEND CONTROLLER
+// ==========================================
+
+
+// ==========================================
+// CONFIGURATION
+// ==========================================
+
 const API_URL =
     "http://localhost:8080/api/status";
 
+const UPDATE_INTERVAL =
+    5000;
+
+
+// ==========================================
+// STATE
+// ==========================================
 
 let monitoring = false;
 
 let monitoringInterval = null;
 
+let requestInProgress = false;
 
-/* =========================
-   START MONITORING
-========================= */
+let historyData = [];
+
+const MAX_HISTORY = 10;
+
+
+// ==========================================
+// DOM ELEMENTS
+// ==========================================
+
+const startBtn =
+    document.getElementById("startBtn");
+
+const stopBtn =
+    document.getElementById("stopBtn");
+
+const resetBtn =
+    document.getElementById("resetBtn");
+
+
+const temperature =
+    document.getElementById("temperature");
+
+const rainfall =
+    document.getElementById("rainfall");
+
+const windSpeed =
+    document.getElementById("windSpeed");
+
+
+const riskLevel =
+    document.getElementById("riskLevel");
+
+const riskScore =
+    document.getElementById("riskScore");
+
+const riskProgress =
+    document.getElementById("riskProgress");
+
+const riskDescription =
+    document.getElementById(
+        "riskDescription"
+    );
+
+
+const sensorId =
+    document.getElementById("sensorId");
+
+const sensorLocation =
+    document.getElementById(
+        "sensorLocation"
+    );
+
+
+const scenarioNumber =
+    document.getElementById(
+        "scenarioNumber"
+    );
+
+
+const dataSource =
+    document.getElementById(
+        "dataSource"
+    );
+
+
+const systemStatus =
+    document.getElementById(
+        "systemStatus"
+    );
+
+
+const systemAlert =
+    document.getElementById(
+        "systemAlert"
+    );
+
+
+const hazardValue =
+    document.getElementById(
+        "hazardValue"
+    );
+
+
+const hazardStatus =
+    document.getElementById(
+        "hazardStatus"
+    );
+
+
+const riskIcon =
+    document.getElementById(
+        "riskIcon"
+    );
+
+
+const lastUpdate =
+    document.getElementById(
+        "lastUpdate"
+    );
+
+
+const historyBody =
+    document.getElementById(
+        "historyBody"
+    );
+
+
+const currentTime =
+    document.getElementById(
+        "currentTime"
+    );
+
+
+// ==========================================
+// START MONITORING
+// ==========================================
 
 function startMonitoring() {
 
@@ -21,49 +152,45 @@ function startMonitoring() {
     monitoring = true;
 
 
-    document.getElementById("startBtn")
-        .disabled = true;
+    startBtn.disabled = true;
+
+    stopBtn.disabled = false;
 
 
-    document.getElementById("stopBtn")
-        .disabled = false;
-
-
-    setSystemStatus(true);
+    setSystemOnline();
 
 
     showAlert(
-        "Monitoring Started",
-        "Java backend is providing simulated environmental data.",
-        "normal"
+        "normal",
+        "Monitoring started. Demo sensor data will update every 5 seconds."
     );
 
 
-    // Get data immediately
+    // Get first data immediately
 
     fetchSensorData();
 
 
-    // Get new data every 5 seconds
+    // Then update every 5 seconds
 
     monitoringInterval =
         setInterval(
             fetchSensorData,
-            5000
+            UPDATE_INTERVAL
         );
 }
 
 
-/* =========================
-   STOP MONITORING
-========================= */
+// ==========================================
+// STOP MONITORING
+// ==========================================
 
 function stopMonitoring() {
 
     monitoring = false;
 
 
-    if (monitoringInterval !== null) {
+    if (monitoringInterval) {
 
         clearInterval(
             monitoringInterval
@@ -73,41 +200,56 @@ function stopMonitoring() {
     }
 
 
-    document.getElementById("startBtn")
-        .disabled = false;
+    startBtn.disabled = false;
+
+    stopBtn.disabled = true;
 
 
-    document.getElementById("stopBtn")
-        .disabled = true;
+    systemStatus.textContent =
+        "● SYSTEM PAUSED";
 
-
-    setSystemStatus(false);
+    systemStatus.className =
+        "system-status offline";
 
 
     showAlert(
-        "Monitoring Stopped",
-        "Environmental monitoring has been stopped.",
-        "normal"
+        "warning",
+        "Monitoring stopped by user."
     );
 }
 
 
-/* =========================
-   FETCH JAVA API
-========================= */
+// ==========================================
+// FETCH DATA
+// ==========================================
 
 async function fetchSensorData() {
+
+    if (
+        requestInProgress ||
+        !monitoring
+    ) {
+        return;
+    }
+
+
+    requestInProgress = true;
+
 
     try {
 
         const response =
-            await fetch(API_URL);
+            await fetch(
+                API_URL +
+                "?t=" +
+                Date.now()
+            );
 
 
         if (!response.ok) {
 
             throw new Error(
-                "API HTTP " +
+                "API returned HTTP " +
                 response.status
             );
         }
@@ -117,668 +259,733 @@ async function fetchSensorData() {
             await response.json();
 
 
-        console.log(
-            "Java API:",
-            data
-        );
-
-
         updateDashboard(data);
 
 
-        addHistory(data);
-
-
-        setSystemStatus(true);
-
-    }
-
-    catch (error) {
+    } catch (error) {
 
         console.error(
-            "Backend connection error:",
+            "Dashboard API error:",
             error
         );
 
 
-        setSystemStatus(false);
+        setSystemOffline();
 
 
         showAlert(
-            "Backend Connection Error",
-            "Make sure ApiServer is running on port 8080.",
-            "danger"
+            "danger",
+            "Unable to connect to Java API. Make sure the Java server is running on port 8080."
         );
+
+
+    } finally {
+
+        requestInProgress = false;
     }
 }
 
 
-/* =========================
-   UPDATE DASHBOARD
-========================= */
+// ==========================================
+// UPDATE DASHBOARD
+// ==========================================
 
 function updateDashboard(data) {
 
-
-    /* ENVIRONMENT */
-
-    document.getElementById("temperature")
-        .textContent =
-        formatNumber(data.temperature)
-        + " °C";
-
-
-    document.getElementById("rainfall")
-        .textContent =
-        formatNumber(data.rainfall)
-        + " mm";
+    if (
+        !data ||
+        data.status !== "success"
+    ) {
+        return;
+    }
 
 
-    document.getElementById("waterLevel")
-        .textContent =
-        formatNumber(data.waterLevel)
-        + " %";
+    // -------------------------------
+    // ENVIRONMENT
+    // -------------------------------
+
+    temperature.textContent =
+        Number(data.temperature)
+            .toFixed(1) +
+        " °C";
 
 
-    document.getElementById("windSpeed")
-        .textContent =
-        formatNumber(data.windSpeed)
-        + " km/h";
+    rainfall.textContent =
+        Number(data.rainfall)
+            .toFixed(1) +
+        " mm";
 
 
-    /* RISK */
-
-    document.getElementById("riskScore")
-        .textContent =
-        data.riskScore;
-
-
-    document.getElementById("riskLevel")
-        .textContent =
-        data.risk;
+    windSpeed.textContent =
+        Number(data.windSpeed)
+            .toFixed(1) +
+        " km/h";
 
 
-    updateRiskVisuals(
-        data.risk,
-        data.riskScore
-    );
+    // -------------------------------
+    // SENSOR
+    // -------------------------------
 
-
-    /* SENSOR */
-
-    document.getElementById("sensorId")
-        .textContent =
+    sensorId.textContent =
         data.sensorId;
 
 
-    document.getElementById("sensorLocation")
-        .textContent =
+    sensorLocation.textContent =
         data.location;
 
 
-    document.getElementById("lastUpdate")
-        .textContent =
-        new Date().toLocaleTimeString();
+    // -------------------------------
+    // SCENARIO
+    // -------------------------------
+
+    scenarioNumber.textContent =
+        "Scenario " +
+        data.scenario;
 
 
-    /* CRITICAL SENSOR */
-
-    document.getElementById("criticalStatus")
-        .textContent =
-        data.risk;
+    dataSource.textContent =
+        data.source ||
+        "SIMULATED DATA";
 
 
-    /* NETWORK */
+    // -------------------------------
+    // RISK
+    // -------------------------------
 
-    updateNetwork(
-        data.sensorId
+    const risk =
+        String(data.risk)
+            .toUpperCase();
+
+
+    const score =
+        Number(data.riskScore);
+
+
+    riskLevel.textContent =
+        risk;
+
+
+    riskScore.textContent =
+        score;
+
+
+    updateRiskVisual(
+        risk,
+        score
     );
 
 
-    /* ALERT */
+    // -------------------------------
+    // HAZARD
+    // -------------------------------
 
-    updateAlert(
-        data
+    updateHazard(
+        data.hazard,
+        risk
     );
+
+
+    // -------------------------------
+    // ALERT
+    // -------------------------------
+
+    updateAlert(risk);
+
+
+    // -------------------------------
+    // TIME
+    // -------------------------------
+
+    const now =
+        new Date();
+
+
+    lastUpdate.textContent =
+        "Last update: " +
+        now.toLocaleTimeString();
+
+
+    // -------------------------------
+    // HISTORY
+    // -------------------------------
+
+    addHistory(data);
 }
 
 
-/* =========================
-   RISK VISUALS
-========================= */
+// ==========================================
+// RISK VISUAL
+// ==========================================
 
-function updateRiskVisuals(
+function updateRiskVisual(
     risk,
     score
 ) {
 
-    const circle =
-        document.getElementById(
-            "riskCircle"
-        );
-
-
-    circle.className =
-        "risk-circle";
-
-
-    circle.classList.add(
-        risk.toLowerCase()
-    );
-
-
-    const progress =
-        document.getElementById(
-            "riskProgress"
-        );
-
-
-    // Maximum score = 12
-
     const percentage =
         Math.min(
-            (score / 12) * 100,
-            100
+            100,
+            Math.max(
+                0,
+                (score / 9) * 100
+            )
         );
 
 
-    progress.style.width =
+    riskProgress.style.width =
         percentage + "%";
 
 
-    if (risk === "LOW") {
+    // Remove previous classes
 
-        progress.style.background =
-            "#22c55e";
-
-    }
-
-    else if (risk === "MEDIUM") {
-
-        progress.style.background =
-            "#eab308";
-
-    }
-
-    else if (risk === "HIGH") {
-
-        progress.style.background =
-            "#f97316";
-
-    }
-
-    else {
-
-        progress.style.background =
-            "#ef4444";
-    }
-
-
-    const description =
-        document.getElementById(
-            "riskDescription"
-        );
-
-
-    if (risk === "LOW") {
-
-        description.textContent =
-            "Environmental conditions are currently within normal limits.";
-
-    }
-
-    else if (risk === "MEDIUM") {
-
-        description.textContent =
-            "Moderate risk detected. Continue monitoring conditions.";
-
-    }
-
-    else if (risk === "HIGH") {
-
-        description.textContent =
-            "High disaster risk detected. Attention is required.";
-
-    }
-
-    else {
-
-        description.textContent =
-            "Critical danger detected. Immediate response is required.";
-    }
-}
-
-
-/* =========================
-   SENSOR NETWORK
-========================= */
-
-function updateNetwork(
-    criticalSensor
-) {
-
-    const nodes = [
-        "nodeS1",
-        "nodeS2",
-        "nodeS3"
-    ];
-
-
-    nodes.forEach(
-        id => {
-
-            document
-                .getElementById(id)
-                .classList
-                .remove("critical");
-
-        }
+    riskLevel.classList.remove(
+        "risk-low",
+        "risk-medium",
+        "risk-high",
+        "risk-danger"
     );
 
 
-    const criticalNode =
-        document.getElementById(
-            "node" + criticalSensor
-        );
+    riskProgress.classList.remove(
+        "risk-low",
+        "risk-medium",
+        "risk-high",
+        "risk-danger"
+    );
 
 
-    if (criticalNode) {
+    switch (risk) {
 
-        criticalNode.classList.add(
-            "critical"
-        );
+        case "LOW":
+
+            riskLevel.classList.add(
+                "risk-low"
+            );
+
+            riskProgress.classList.add(
+                "risk-low"
+            );
+
+            riskIcon.textContent =
+                "✓";
+
+            riskDescription.textContent =
+                "Normal conditions";
+
+            break;
+
+
+        case "MEDIUM":
+
+            riskLevel.classList.add(
+                "risk-medium"
+            );
+
+            riskProgress.classList.add(
+                "risk-medium"
+            );
+
+            riskIcon.textContent =
+                "!";
+
+            riskDescription.textContent =
+                "Moderate risk";
+
+            break;
+
+
+        case "HIGH":
+
+            riskLevel.classList.add(
+                "risk-high"
+            );
+
+            riskProgress.classList.add(
+                "risk-high"
+            );
+
+            riskIcon.textContent =
+                "⚠";
+
+            riskDescription.textContent =
+                "High disaster risk";
+
+            break;
+
+
+        case "DANGER":
+
+            riskLevel.classList.add(
+                "risk-danger"
+            );
+
+            riskProgress.classList.add(
+                "risk-danger"
+            );
+
+            riskIcon.textContent =
+                "!!";
+
+            riskDescription.textContent =
+                "Emergency conditions";
+
+            break;
     }
 }
 
 
-/* =========================
-   ALERT
-========================= */
+// ==========================================
+// HAZARD
+// ==========================================
 
-function updateAlert(data) {
+function updateHazard(
+    hazard,
+    risk
+) {
 
-    if (data.risk === "LOW") {
+    hazardValue.textContent =
+        hazard || "Normal";
 
-        showAlert(
-            "Normal Conditions",
-            "No critical environmental condition detected.",
+
+    hazardStatus.classList.remove(
+        "normal",
+        "warning",
+        "danger"
+    );
+
+
+    if (risk === "LOW") {
+
+        hazardStatus.classList.add(
             "normal"
         );
 
-    }
+        hazardStatus.textContent =
+            "No immediate threat";
 
-    else if (data.risk === "MEDIUM") {
-
-        showAlert(
-            "Moderate Risk Detected",
-            "Monitoring should continue at " +
-            data.location +
-            ".",
-            "medium"
-        );
-
-    }
-
-    else if (data.risk === "HIGH") {
-
-        showAlert(
-            "HIGH DISASTER RISK",
-            "High risk detected at " +
-            data.location +
-            ". Immediate attention is recommended.",
-            "high"
-        );
-
-    }
-
-    else {
-
-        showAlert(
-            "EMERGENCY — DANGER",
-            "Immediate disaster response required at " +
-            data.location +
-            ".",
-            "danger"
-        );
-    }
-}
-
-
-/* =========================
-   ALERT BOX
-========================= */
-
-function showAlert(
-    title,
-    message,
-    type
-) {
-
-    const box =
-        document.getElementById(
-            "alertBox"
-        );
-
-
-    let icon = "✓";
-
-
-    if (type === "medium") {
-
-        icon = "!";
-    }
-
-    else if (
-        type === "high" ||
-        type === "danger"
+    } else if (
+        risk === "MEDIUM"
     ) {
 
-        icon = "⚠";
+        hazardStatus.classList.add(
+            "warning"
+        );
+
+        hazardStatus.textContent =
+            "Monitor conditions";
+
+    } else {
+
+        hazardStatus.classList.add(
+            "danger"
+        );
+
+        hazardStatus.textContent =
+            "Immediate attention required";
     }
-
-
-    box.className =
-        "alert-box " + type;
-
-
-    box.innerHTML = `
-
-        <div class="alert-icon">
-            ${icon}
-        </div>
-
-        <div>
-
-            <strong>
-                ${title}
-            </strong>
-
-            <p>
-                ${message}
-            </p>
-
-        </div>
-
-    `;
 }
 
 
-/* =========================
-   HISTORY
-========================= */
+// ==========================================
+// ALERT
+// ==========================================
+
+function updateAlert(risk) {
+
+    switch (risk) {
+
+        case "LOW":
+
+            showAlert(
+                "normal",
+                "✓ NORMAL: Environmental conditions are within safe limits."
+            );
+
+            break;
+
+
+        case "MEDIUM":
+
+            showAlert(
+                "warning",
+                "⚠ WARNING: Moderate disaster risk detected. Continue monitoring."
+            );
+
+            break;
+
+
+        case "HIGH":
+
+            showAlert(
+                "high",
+                "⚠ HIGH RISK: Significant disaster risk detected."
+            );
+
+            break;
+
+
+        case "DANGER":
+
+            showAlert(
+                "danger",
+                "🚨 EMERGENCY: Dangerous environmental conditions detected. Immediate disaster response may be required."
+            );
+
+            break;
+    }
+}
+
+
+// ==========================================
+// SHOW ALERT
+// ==========================================
+
+function showAlert(
+    type,
+    message
+) {
+
+    systemAlert.className =
+        "system-alert " +
+        type;
+
+
+    systemAlert.textContent =
+        message;
+}
+
+
+// ==========================================
+// HISTORY
+// ==========================================
 
 function addHistory(data) {
 
-    const table =
-        document.getElementById(
-            "historyTable"
-        );
+    const now =
+        new Date();
 
 
-    // Remove empty message
+    const item = {
 
-    const empty =
-        table.querySelector(
-            ".empty-history"
-        );
+        time:
+            now.toLocaleTimeString(),
 
+        scenario:
+            data.scenario,
 
-    if (empty) {
+        sensor:
+            data.sensorId,
 
-        empty.parentElement.remove();
-    }
+        temperature:
+            Number(data.temperature),
 
+        rainfall:
+            Number(data.rainfall),
 
-    const row =
-        document.createElement("tr");
+        wind:
+            Number(data.windSpeed),
 
+        score:
+            Number(data.riskScore),
 
-    const riskClass =
-        data.risk.toLowerCase();
-
-
-    row.innerHTML = `
-
-        <td>
-            ${new Date().toLocaleTimeString()}
-        </td>
-
-        <td>
-            <strong>
-                ${data.sensorId}
-            </strong>
-        </td>
-
-        <td>
-            ${data.location}
-        </td>
-
-        <td>
-            <strong>
-                ${data.riskScore}
-            </strong>
-        </td>
-
-        <td>
-
-            <span class="table-risk ${riskClass}">
-                ${data.risk}
-            </span>
-
-        </td>
-
-    `;
+        risk:
+            String(data.risk)
+                .toUpperCase()
+    };
 
 
-    table.insertBefore(
-        row,
-        table.firstChild
-    );
+    historyData.unshift(item);
 
 
-    // Keep latest 10 records
-
-    while (
-        table.children.length > 10
+    if (
+        historyData.length >
+        MAX_HISTORY
     ) {
 
-        table.removeChild(
-            table.lastChild
-        );
+        historyData =
+            historyData.slice(
+                0,
+                MAX_HISTORY
+            );
+    }
+
+
+    renderHistory();
+}
+
+
+// ==========================================
+// RENDER HISTORY
+// ==========================================
+
+function renderHistory() {
+
+    if (
+        historyData.length === 0
+    ) {
+
+        historyBody.innerHTML = `
+
+            <tr>
+
+                <td
+                    colspan="8"
+                    class="empty-row"
+                >
+                    No monitoring data yet.
+                </td>
+
+            </tr>
+
+        `;
+
+        return;
+    }
+
+
+    historyBody.innerHTML =
+        historyData.map(
+            item => `
+
+                <tr>
+
+                    <td>
+                        ${item.time}
+                    </td>
+
+                    <td>
+                        #${item.scenario}
+                    </td>
+
+                    <td>
+                        ${item.sensor}
+                    </td>
+
+                    <td>
+                        ${item.temperature.toFixed(1)} °C
+                    </td>
+
+                    <td>
+                        ${item.rainfall.toFixed(1)} mm
+                    </td>
+
+                    <td>
+                        ${item.wind.toFixed(1)} km/h
+                    </td>
+
+                    <td>
+                        ${item.score}/9
+                    </td>
+
+                    <td>
+                        <span
+                            class="table-risk ${getRiskClass(item.risk)}"
+                        >
+                            ${item.risk}
+                        </span>
+                    </td>
+
+                </tr>
+
+            `
+        ).join("");
+}
+
+
+// ==========================================
+// RISK CLASS
+// ==========================================
+
+function getRiskClass(risk) {
+
+    switch (risk) {
+
+        case "LOW":
+            return "low";
+
+        case "MEDIUM":
+            return "medium";
+
+        case "HIGH":
+            return "high";
+
+        case "DANGER":
+            return "danger";
+
+        default:
+            return "low";
     }
 }
 
 
-/* =========================
-   SYSTEM STATUS
-========================= */
+// ==========================================
+// SYSTEM ONLINE
+// ==========================================
 
-function setSystemStatus(
-    online
-) {
+function setSystemOnline() {
 
-    const dot =
-        document.getElementById(
-            "statusDot"
-        );
+    systemStatus.textContent =
+        "● SYSTEM ONLINE";
 
-
-    const systemStatus =
-        document.getElementById(
-            "systemStatus"
-        );
-
-
-    const sidebarDot =
-        document.getElementById(
-            "sidebarStatusDot"
-        );
-
-
-    const sidebarStatus =
-        document.getElementById(
-            "sidebarStatus"
-        );
-
-
-    if (online) {
-
-        dot.style.background =
-            "#22c55e";
-
-
-        systemStatus.textContent =
-            "SYSTEM ONLINE";
-
-
-        sidebarDot.style.background =
-            "#22c55e";
-
-
-        sidebarStatus.textContent =
-            "Backend Connected";
-
-    }
-
-    else {
-
-        dot.style.background =
-            "#ef4444";
-
-
-        systemStatus.textContent =
-            "SYSTEM OFFLINE";
-
-
-        sidebarDot.style.background =
-            "#ef4444";
-
-
-        sidebarStatus.textContent =
-            "Backend Offline";
-    }
+    systemStatus.className =
+        "system-status online";
 }
 
 
-/* =========================
-   RESET
-========================= */
+// ==========================================
+// SYSTEM OFFLINE
+// ==========================================
+
+function setSystemOffline() {
+
+    systemStatus.textContent =
+        "● SYSTEM OFFLINE";
+
+    systemStatus.className =
+        "system-status offline";
+}
+
+
+// ==========================================
+// RESET
+// ==========================================
 
 function resetDashboard() {
 
     stopMonitoring();
 
 
-    document.getElementById(
-        "temperature"
-    ).textContent = "-- °C";
+    historyData = [];
 
 
-    document.getElementById(
-        "rainfall"
-    ).textContent = "-- mm";
+    temperature.textContent =
+        "-- °C";
 
 
-    document.getElementById(
-        "waterLevel"
-    ).textContent = "-- %";
+    rainfall.textContent =
+        "-- mm";
 
 
-    document.getElementById(
-        "windSpeed"
-    ).textContent = "-- km/h";
+    windSpeed.textContent =
+        "-- km/h";
 
 
-    document.getElementById(
-        "riskScore"
-    ).textContent = "--";
+    riskLevel.textContent =
+        "READY";
 
 
-    document.getElementById(
-        "riskLevel"
-    ).textContent =
-        "WAITING";
+    riskLevel.classList.remove(
+        "risk-low",
+        "risk-medium",
+        "risk-high",
+        "risk-danger"
+    );
 
 
-    document.getElementById(
-        "riskCircle"
-    ).className =
-        "risk-circle";
+    riskScore.textContent =
+        "--";
 
 
-    document.getElementById(
-        "riskProgress"
-    ).style.width =
+    riskProgress.style.width =
         "0%";
 
 
-    document.getElementById(
-        "sensorId"
-    ).textContent =
+    riskDescription.textContent =
+        "Waiting for monitoring...";
+
+
+    riskIcon.textContent =
+        "?";
+
+
+    sensorId.textContent =
         "--";
 
 
-    document.getElementById(
-        "sensorLocation"
-    ).textContent =
-        "No sensor selected";
+    sensorLocation.textContent =
+        "Waiting for data";
 
 
-    document.getElementById(
-        "criticalStatus"
-    ).textContent =
+    scenarioNumber.textContent =
         "Waiting";
 
 
-    document.getElementById(
-        "lastUpdate"
-    ).textContent =
-        "--";
+    dataSource.textContent =
+        "SIMULATED DATA";
 
 
-    document.getElementById(
-        "historyTable"
-    ).innerHTML = `
-
-        <tr>
-
-            <td
-                colspan="5"
-                class="empty-history"
-            >
-                No monitoring data yet.
-            </td>
-
-        </tr>
-
-    `;
+    hazardValue.textContent =
+        "Normal";
 
 
-    updateNetwork("");
+    hazardStatus.className =
+        "hazard-status normal";
 
 
-    showAlert(
-        "System Ready",
-        "Dashboard has been reset.",
-        "normal"
-    );
+    hazardStatus.textContent =
+        "No immediate threat";
+
+
+    lastUpdate.textContent =
+        "Last update: --";
+
+
+    systemAlert.className =
+        "system-alert hidden";
+
+
+    renderHistory();
 }
 
 
-/* =========================
-   FORMAT NUMBER
-========================= */
+// ==========================================
+// CLOCK
+// ==========================================
 
-function formatNumber(value) {
+function updateClock() {
 
-    return Number(value)
-        .toFixed(1)
-        .replace(".0", "");
+    const now =
+        new Date();
+
+
+    currentTime.textContent =
+        now.toLocaleString();
 }
 
 
-/* =========================
-   INITIAL STATUS
-========================= */
+setInterval(
+    updateClock,
+    1000
+);
 
-setSystemStatus(false);
+
+updateClock();
+
+
+// ==========================================
+// BUTTON EVENTS
+// ==========================================
+
+startBtn.addEventListener(
+    "click",
+    startMonitoring
+);
+
+
+stopBtn.addEventListener(
+    "click",
+    stopMonitoring
+);
+
+
+resetBtn.addEventListener(
+    "click",
+    resetDashboard
+);
+
+
+// ==========================================
+// INITIAL STATE
+// ==========================================
+
+renderHistory();

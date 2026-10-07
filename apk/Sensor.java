@@ -2,22 +2,26 @@ public class Sensor {
 
     private String id;
     private String location;
+
     private double temperature;
     private double rainfall;
-    private double waterLevel;
     private double windSpeed;
 
-    public Sensor(String id, String location,
-                  double temperature,
-                  double rainfall,
-                  double waterLevel,
-                  double windSpeed) {
+    private int riskScore;
+    private String riskLevel;
+    private String hazard;
+
+    public Sensor(
+            String id,
+            String location,
+            double temperature,
+            double rainfall,
+            double windSpeed) {
 
         this.id = id;
         this.location = location;
         this.temperature = temperature;
         this.rainfall = rainfall;
-        this.waterLevel = waterLevel;
         this.windSpeed = windSpeed;
     }
 
@@ -37,23 +41,43 @@ public class Sensor {
         return rainfall;
     }
 
-    public double getWaterLevel() {
-        return waterLevel;
-    }
-
     public double getWindSpeed() {
         return windSpeed;
+    }
+
+    public int getRiskScore() {
+        return riskScore;
+    }
+
+    public String getRiskLevel() {
+        return riskLevel;
+    }
+
+    public String getHazard() {
+        return hazard;
+    }
+
+    public void setRiskScore(int riskScore) {
+        this.riskScore = riskScore;
+    }
+
+    public void setRiskLevel(String riskLevel) {
+        this.riskLevel = riskLevel;
+    }
+
+    public void setHazard(String hazard) {
+        this.hazard = hazard;
     }
 
     @Override
     public String toString() {
 
-        return "Sensor ID: " + id +
-                ", Location: " + location +
-                ", Temperature: " + temperature +
-                "°C, Rainfall: " + rainfall +
-                "mm, Water Level: " + waterLevel +
-                "%, Wind Speed: " + windSpeed +
-                "km/h";
+        return "Location: " + location +
+                ", Temperature: " + temperature + " °C" +
+                ", Rainfall: " + rainfall + " mm" +
+                ", Wind Speed: " + windSpeed + " km/h" +
+                ", Risk: " + riskLevel +
+                ", Score: " + riskScore +
+                ", Hazard: " + hazard;
     }
 }

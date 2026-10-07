@@ -4,14 +4,9 @@ public class DisasterAgent {
 
     private Sensor sensor;
 
-
     public DisasterAgent(Sensor sensor) {
-
         this.sensor = sensor;
     }
-
-
-    // JAVA RULE ENGINE
 
     public void applyRules() {
 
@@ -19,97 +14,190 @@ public class DisasterAgent {
                 "\n===== JAVA RULE ENGINE ====="
         );
 
+        int score = 0;
 
-        boolean danger = false;
+        // TEMPERATURE RULES
 
-
-        if (sensor.getTemperature() > 50) {
+        if (sensor.getTemperature() >= 50) {
 
             System.out.println(
                     "WARNING: Extremely high temperature"
             );
 
-            danger = true;
+            score += 3;
+
+        } else if (sensor.getTemperature() >= 40) {
+
+            System.out.println(
+                    "WARNING: High temperature"
+            );
+
+            score += 2;
+
+        } else if (sensor.getTemperature() >= 35) {
+
+            score += 1;
         }
 
 
-        if (sensor.getRainfall() > 200) {
+        // RAINFALL RULES
+
+        if (sensor.getRainfall() >= 50) {
+
+            System.out.println(
+                    "WARNING: Extremely heavy rainfall"
+            );
+
+            score += 3;
+
+        } else if (sensor.getRainfall() >= 20) {
 
             System.out.println(
                     "WARNING: Heavy rainfall"
             );
 
-            danger = true;
+            score += 2;
+
+        } else if (sensor.getRainfall() >= 10) {
+
+            score += 1;
         }
 
 
-        if (sensor.getWaterLevel() > 90) {
+        // WIND RULES
 
-            System.out.println(
-                    "WARNING: Critical water level"
-            );
-
-            danger = true;
-        }
-
-
-        if (sensor.getWindSpeed() > 100) {
+        if (sensor.getWindSpeed() >= 100) {
 
             System.out.println(
                     "WARNING: Very high wind speed"
             );
 
-            danger = true;
-        }
+            score += 3;
 
-
-        if (!danger) {
+        } else if (sensor.getWindSpeed() >= 70) {
 
             System.out.println(
-                    "No critical rule detected."
+                    "WARNING: High wind speed"
             );
+
+            score += 2;
+
+        } else if (sensor.getWindSpeed() >= 40) {
+
+            score += 1;
         }
+
+
+        // RISK CLASSIFICATION
+
+        String risk;
+
+        if (score <= 2) {
+
+            risk = "LOW";
+
+        } else if (score <= 5) {
+
+            risk = "MEDIUM";
+
+        } else if (score <= 8) {
+
+            risk = "HIGH";
+
+        } else {
+
+            risk = "DANGER";
+        }
+
+
+        String hazard =
+                detectHazard(sensor);
+
+
+        sensor.setRiskScore(score);
+        sensor.setRiskLevel(risk);
+        sensor.setHazard(hazard);
+
+
+        System.out.println(
+                "Java Risk Score: " + score
+        );
+
+        System.out.println(
+                "Java Risk Level: " + risk
+        );
+
+        System.out.println(
+                "Detected Hazard: " + hazard
+        );
     }
 
 
-    // EXPORT SENSOR DATA
+    private String detectHazard(
+            Sensor sensor) {
+
+        boolean flood =
+                sensor.getRainfall() >= 20;
+
+        boolean heat =
+                sensor.getTemperature() >= 40;
+
+        boolean wind =
+                sensor.getWindSpeed() >= 70;
+
+
+        if (flood && heat && wind) {
+
+            return "Multiple Hazards";
+
+        } else if (flood) {
+
+            return "Flood Risk";
+
+        } else if (heat) {
+
+            return "Extreme Heat";
+
+        } else if (wind) {
+
+            return "High Wind";
+
+        } else {
+
+            return "Normal";
+        }
+    }
+
 
     public void exportData()
             throws IOException {
 
-        FileWriter writer =
-                new FileWriter(
-                        "sensor_data.csv"
-                );
+        try (
+                FileWriter writer =
+                        new FileWriter(
+                                "sensor_data.csv"
+                        )
+        ) {
 
+            writer.write(
+                    "temperature,rainfall,windSpeed\n"
+            );
 
-        writer.write(
-                "temperature,rainfall,waterLevel,windSpeed\n"
-        );
-
-
-        writer.write(
-                sensor.getTemperature()
-                        + ","
-                        + sensor.getRainfall()
-                        + ","
-                        + sensor.getWaterLevel()
-                        + ","
-                        + sensor.getWindSpeed()
-                        + "\n"
-        );
-
-
-        writer.close();
-
+            writer.write(
+                    sensor.getTemperature() +
+                    "," +
+                    sensor.getRainfall() +
+                    "," +
+                    sensor.getWindSpeed() +
+                    "\n"
+            );
+        }
 
         System.out.println(
-                "\nSensor data exported to sensor_data.csv"
+                "Sensor data exported to sensor_data.csv"
         );
     }
 
-
-    // RUN PYTHON CLASSIFIER
 
     public String runPythonClassifier()
             throws IOException,
@@ -121,23 +209,16 @@ public class DisasterAgent {
                         "risk_classifier.py"
                 );
 
-
-        // Make sure Python runs
-        // inside the apk project directory
-
         processBuilder.directory(
                 new File(".")
         );
-
 
         processBuilder.redirectErrorStream(
                 true
         );
 
-
         Process process =
                 processBuilder.start();
-
 
         BufferedReader reader =
                 new BufferedReader(
@@ -146,34 +227,28 @@ public class DisasterAgent {
                         )
                 );
 
-
-        String result;
+        String line;
 
         String risk = "";
 
-
         while (
-                (result = reader.readLine())
+                (line = reader.readLine())
                         != null
         ) {
 
             System.out.println(
-                    "Python: " + result
+                    "Python: " + line
             );
 
-
             if (
-                    result.startsWith(
-                            "RISK="
-                    )
+                    line.startsWith("RISK=")
             ) {
 
                 risk =
-                        result.substring(5)
+                        line.substring(5)
                                 .trim();
             }
         }
-
 
         int exitCode =
                 process.waitFor();
@@ -183,7 +258,7 @@ public class DisasterAgent {
 
             throw new IOException(
                     "Python classifier failed. Exit code: "
-                            + exitCode
+                    + exitCode
             );
         }
 
@@ -200,15 +275,12 @@ public class DisasterAgent {
     }
 
 
-    // GENERATE ALERT
-
     public void generateAlert(
             String risk) {
 
         System.out.println(
                 "\n===== ALERT SYSTEM ====="
         );
-
 
         switch (risk) {
 

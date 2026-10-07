@@ -4,386 +4,290 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ApiServer {
 
-    private static final int PORT = 8080;
+    private static final AtomicInteger scenarioIndex =
+            new AtomicInteger(0);
 
-    public static void main(String[] args) throws Exception {
+
+    public static void main(String[] args)
+            throws Exception {
 
         HttpServer server =
                 HttpServer.create(
-                        new InetSocketAddress(PORT),
+                        new InetSocketAddress(8080),
                         0
                 );
+
+
+        // STATUS API
 
         server.createContext(
                 "/api/status",
                 ApiServer::handleStatus
         );
 
+
+        // HEALTH API
+
         server.createContext(
                 "/api/health",
                 ApiServer::handleHealth
         );
 
+
+        server.setExecutor(null);
+
         server.start();
 
-        System.out.println("======================================");
-        System.out.println(" DISASTER EARLY-WARNING API SERVER");
-        System.out.println("======================================");
+
         System.out.println(
-                "Server running at: http://localhost:" + PORT
+                "\n======================================"
         );
+
         System.out.println(
-                "API: http://localhost:" +
-                        PORT +
-                        "/api/status"
+                " DISASTER EARLY-WARNING API SERVER"
+        );
+
+        System.out.println(
+                "======================================"
+        );
+
+        System.out.println(
+                "Server running at:"
+        );
+
+        System.out.println(
+                "http://localhost:8080"
+        );
+
+        System.out.println();
+
+        System.out.println(
+                "Dashboard API:"
+        );
+
+        System.out.println(
+                "http://localhost:8080/api/status"
+        );
+
+        System.out.println();
+
+        System.out.println(
+                "Demo sequence:"
+        );
+
+        System.out.println(
+                "LOW -> MEDIUM -> HIGH -> DANGER"
         );
     }
 
 
-    // STATUS API
     private static void handleStatus(
-            HttpExchange exchange) {
+            HttpExchange exchange)
+            throws IOException {
+
+        addCorsHeaders(exchange);
+
+
+        if (!exchange.getRequestMethod()
+                .equalsIgnoreCase("GET")) {
+
+            sendResponse(
+                    exchange,
+                    405,
+                    "{\"error\":\"Method not allowed\"}"
+            );
+
+            return;
+        }
+
+
+        int index =
+                scenarioIndex.getAndIncrement()
+                        % 4;
+
+
+        Sensor sensor =
+                createDemoSensor(index);
+
+
+        DisasterAgent agent =
+                new DisasterAgent(sensor);
+
+
+        // Java rule engine
+
+        agent.applyRules();
+
+
+        // Export CSV
 
         try {
-
-            // Allow browser frontend
-            addCorsHeaders(exchange);
-
-            // Handle browser preflight request
-            if ("OPTIONS".equalsIgnoreCase(
-                    exchange.getRequestMethod())) {
-
-                exchange.sendResponseHeaders(
-                        204,
-                        -1
-                );
-
-                exchange.close();
-
-                return;
-            }
-
-
-            if (!"GET".equalsIgnoreCase(
-                    exchange.getRequestMethod())) {
-
-                sendResponse(
-                        exchange,
-                        405,
-                        "{\"error\":\"Method not allowed\"}"
-                );
-
-                return;
-            }
-
-
-            // Generate three simulated sensors
-
-            Sensor s1 =
-                    generateSensor(
-                            "S1",
-                            "Main Road"
-                    );
-
-            Sensor s2 =
-                    generateSensor(
-                            "S2",
-                            "River Area"
-                    );
-
-            Sensor s3 =
-                    generateSensor(
-                            "S3",
-                            "Village Area"
-                    );
-
-
-            // Find highest-risk sensor
-
-            Sensor critical =
-                    findCriticalSensor(
-                            s1,
-                            s2,
-                            s3
-                    );
-
-
-            // Create Disaster Agent
-
-            DisasterAgent agent =
-                    new DisasterAgent(
-                            critical
-                    );
-
-
-            // Java rule analysis
-
-            agent.applyRules();
-
-
-            // Export data
 
             agent.exportData();
 
+        } catch (Exception e) {
 
-            // Run Python
-
-            String risk =
-                    agent.runPythonClassifier();
-
-
-            // Calculate score
-
-            int score =
-                    calculateRiskScore(
-                            critical
-                    );
-
-
-            // Create JSON
-
-            String json =
-                    createJson(
-                            critical,
-                            score,
-                            risk
-                    );
-
-
-            sendResponse(
-                    exchange,
-                    200,
-                    json
+            System.out.println(
+                    "CSV export error: "
+                    + e.getMessage()
             );
-
         }
 
-        catch (Exception e) {
 
-            e.printStackTrace();
+        // Python classifier
 
-            try {
+        String pythonRisk =
+                sensor.getRiskLevel();
 
-                addCorsHeaders(exchange);
-
-                sendResponse(
-                        exchange,
-                        500,
-                        "{\"error\":\"" +
-                                escapeJson(
-                                        e.getMessage()
-                                ) +
-                                "\"}"
-                );
-
-            }
-
-            catch (Exception ignored) {
-            }
-        }
-    }
-
-
-    // HEALTH API
-
-    private static void handleHealth(
-            HttpExchange exchange) {
 
         try {
 
-            addCorsHeaders(exchange);
+            pythonRisk =
+                    agent.runPythonClassifier();
 
-            String json =
-                    "{\"status\":\"online\"}";
+        } catch (Exception e) {
 
-            sendResponse(
-                    exchange,
-                    200,
-                    json
+            System.out.println(
+                    "Python classifier error: "
+                    + e.getMessage()
             );
-
         }
 
-        catch (Exception e) {
 
-            e.printStackTrace();
-        }
-    }
+        // Use Python result
 
-
-    // GENERATE SIMULATED SENSOR
-
-    private static Sensor generateSensor(
-            String id,
-            String location) {
-
-        Random random =
-                new Random();
-
-        double temperature =
-                30 + random.nextInt(21);
-
-        double rainfall =
-                random.nextInt(251);
-
-        double waterLevel =
-                30 + random.nextInt(71);
-
-        double windSpeed =
-                20 + random.nextInt(101);
+        sensor.setRiskLevel(
+                pythonRisk
+        );
 
 
-        return new Sensor(
-                id,
-                location,
-                temperature,
-                rainfall,
-                waterLevel,
-                windSpeed
+        agent.generateAlert(
+                pythonRisk
+        );
+
+
+        String json =
+                createJson(
+                        sensor,
+                        index
+                );
+
+
+        sendResponse(
+                exchange,
+                200,
+                json
         );
     }
 
 
-    // FIND HIGHEST-RISK SENSOR
+    private static Sensor createDemoSensor(
+            int scenario) {
 
-    private static Sensor findCriticalSensor(
-            Sensor... sensors) {
 
-        Sensor critical =
-                sensors[0];
+        switch (scenario) {
 
-        int highestScore =
-                calculateRiskScore(
-                        critical
+            // ---------------------------
+            // LOW
+            // ---------------------------
+
+            case 0:
+
+                return new Sensor(
+                        "DEMO-01",
+                        "Main Road",
+                        30.0,
+                        0.0,
+                        15.0
                 );
 
 
-        for (int i = 1;
-             i < sensors.length;
-             i++) {
+            // ---------------------------
+            // MEDIUM
+            // ---------------------------
 
-            int score =
-                    calculateRiskScore(
-                            sensors[i]
-                    );
+            case 1:
+
+                return new Sensor(
+                        "DEMO-02",
+                        "Village Area",
+                        38.0,
+                        15.0,
+                        45.0
+                );
 
 
-            if (score > highestScore) {
+            // ---------------------------
+            // HIGH
+            // ---------------------------
 
-                highestScore = score;
+            case 2:
 
-                critical = sensors[i];
-            }
+                return new Sensor(
+                        "DEMO-03",
+                        "River Area",
+                        45.0,
+                        30.0,
+                        80.0
+                );
+
+
+            // ---------------------------
+            // DANGER
+            // ---------------------------
+
+            case 3:
+
+                return new Sensor(
+                        "DEMO-04",
+                        "Flood Zone",
+                        52.0,
+                        60.0,
+                        110.0
+                );
+
+
+            default:
+
+                return new Sensor(
+                        "DEMO-01",
+                        "Main Road",
+                        30.0,
+                        0.0,
+                        15.0
+                );
         }
-
-
-        return critical;
     }
 
-
-    // CALCULATE RISK SCORE
-
-    private static int calculateRiskScore(
-            Sensor sensor) {
-
-        int score = 0;
-
-
-        // Temperature
-
-        if (sensor.getTemperature() >= 50) {
-
-            score += 3;
-
-        } else if (
-                sensor.getTemperature() >= 40) {
-
-            score += 2;
-
-        } else if (
-                sensor.getTemperature() >= 35) {
-
-            score += 1;
-        }
-
-
-        // Rainfall
-
-        if (sensor.getRainfall() >= 200) {
-
-            score += 3;
-
-        } else if (
-                sensor.getRainfall() >= 100) {
-
-            score += 2;
-
-        } else if (
-                sensor.getRainfall() >= 50) {
-
-            score += 1;
-        }
-
-
-        // Water level
-
-        if (sensor.getWaterLevel() >= 90) {
-
-            score += 3;
-
-        } else if (
-                sensor.getWaterLevel() >= 70) {
-
-            score += 2;
-
-        } else if (
-                sensor.getWaterLevel() >= 50) {
-
-            score += 1;
-        }
-
-
-        // Wind speed
-
-        if (sensor.getWindSpeed() >= 100) {
-
-            score += 3;
-
-        } else if (
-                sensor.getWindSpeed() >= 70) {
-
-            score += 2;
-
-        } else if (
-                sensor.getWindSpeed() >= 40) {
-
-            score += 1;
-        }
-
-
-        return score;
-    }
-
-
-    // CREATE JSON RESPONSE
 
     private static String createJson(
             Sensor sensor,
-            int score,
-            String risk) {
+            int scenario) {
+
 
         return "{"
+
+                + "\"status\":\"success\","
+
+                + "\"mode\":\"DEMO\","
+
+                + "\"scenario\":"
+                + (scenario + 1)
+                + ","
+
                 + "\"sensorId\":\""
-                + escapeJson(sensor.getId())
+                + escape(sensor.getId())
                 + "\","
 
                 + "\"location\":\""
-                + escapeJson(sensor.getLocation())
+                + escape(sensor.getLocation())
                 + "\","
+
+                + "\"source\":\"Simulated Data\","
 
                 + "\"temperature\":"
                 + sensor.getTemperature()
@@ -393,62 +297,48 @@ public class ApiServer {
                 + sensor.getRainfall()
                 + ","
 
-                + "\"waterLevel\":"
-                + sensor.getWaterLevel()
-                + ","
-
                 + "\"windSpeed\":"
                 + sensor.getWindSpeed()
                 + ","
 
                 + "\"riskScore\":"
-                + score
+                + sensor.getRiskScore()
                 + ","
 
                 + "\"risk\":\""
-                + escapeJson(risk)
+                + escape(sensor.getRiskLevel())
+                + "\","
+
+                + "\"hazard\":\""
+                + escape(sensor.getHazard())
                 + "\""
 
                 + "}";
     }
 
 
-    // SEND HTTP RESPONSE
-
-    private static void sendResponse(
-            HttpExchange exchange,
-            int statusCode,
-            String response)
+    private static void handleHealth(
+            HttpExchange exchange)
             throws IOException {
 
-        byte[] bytes =
-                response.getBytes(
-                        StandardCharsets.UTF_8
-                );
+        addCorsHeaders(exchange);
 
 
-        exchange.getResponseHeaders()
-                .set(
-                        "Content-Type",
-                        "application/json; charset=UTF-8"
-                );
+        String json =
+                "{"
+                + "\"status\":\"online\","
+                + "\"mode\":\"DEMO\","
+                + "\"service\":\"Disaster Early-Warning Agent\""
+                + "}";
 
 
-        exchange.sendResponseHeaders(
-                statusCode,
-                bytes.length
+        sendResponse(
+                exchange,
+                200,
+                json
         );
-
-
-        try (OutputStream output =
-                     exchange.getResponseBody()) {
-
-            output.write(bytes);
-        }
     }
 
-
-    // CORS
 
     private static void addCorsHeaders(
             HttpExchange exchange) {
@@ -470,16 +360,46 @@ public class ApiServer {
                         "Access-Control-Allow-Headers",
                         "Content-Type"
                 );
+
+        exchange.getResponseHeaders()
+                .set(
+                        "Content-Type",
+                        "application/json; charset=UTF-8"
+                );
     }
 
 
-    // ESCAPE JSON
+    private static void sendResponse(
+            HttpExchange exchange,
+            int statusCode,
+            String response)
+            throws IOException {
 
-    private static String escapeJson(
+
+        byte[] bytes =
+                response.getBytes(
+                        StandardCharsets.UTF_8
+                );
+
+
+        exchange.sendResponseHeaders(
+                statusCode,
+                bytes.length
+        );
+
+
+        try (OutputStream output =
+                     exchange.getResponseBody()) {
+
+            output.write(bytes);
+        }
+    }
+
+
+    private static String escape(
             String value) {
 
         if (value == null) {
-
             return "";
         }
 

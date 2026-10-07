@@ -1,2 +1,2 @@
-temperature,rainfall,waterLevel,windSpeed
-47.0,250.0,77.0,95.0
+temperature,rainfall,windSpeed
+30.0,0.0,15.0

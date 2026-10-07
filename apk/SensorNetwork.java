@@ -10,13 +10,25 @@ public class SensorNetwork {
 
     public void addSensor(String sensorId) {
 
-        graph.putIfAbsent(sensorId, new ArrayList<>());
+        graph.putIfAbsent(
+                sensorId,
+                new ArrayList<>()
+        );
     }
 
-    public void connectSensors(String sensor1, String sensor2) {
+    public void connectSensors(
+            String sensor1,
+            String sensor2) {
 
-        graph.putIfAbsent(sensor1, new ArrayList<>());
-        graph.putIfAbsent(sensor2, new ArrayList<>());
+        graph.putIfAbsent(
+                sensor1,
+                new ArrayList<>()
+        );
+
+        graph.putIfAbsent(
+                sensor2,
+                new ArrayList<>()
+        );
 
         graph.get(sensor1).add(sensor2);
         graph.get(sensor2).add(sensor1);
@@ -24,39 +36,56 @@ public class SensorNetwork {
 
     public void displayNetwork() {
 
-        System.out.println("\n===== SENSOR NETWORK =====");
+        System.out.println(
+                "\n===== SENSOR NETWORK ====="
+        );
 
         for (String sensor : graph.keySet()) {
 
             System.out.println(
-                    sensor + " -> " + graph.get(sensor)
+                    sensor + " -> " +
+                    graph.get(sensor)
             );
         }
     }
 
-    // BFS traversal
     public void BFS(String startSensor) {
 
         if (!graph.containsKey(startSensor)) {
-            System.out.println("Sensor not found.");
+
+            System.out.println(
+                    "Sensor not found."
+            );
+
             return;
         }
 
-        Set<String> visited = new HashSet<>();
-        Queue<String> queue = new LinkedList<>();
+        Set<String> visited =
+                new HashSet<>();
+
+        Queue<String> queue =
+                new LinkedList<>();
 
         queue.add(startSensor);
         visited.add(startSensor);
 
-        System.out.println("\nBFS Sensor Network Traversal:");
+        System.out.println(
+                "\nBFS Sensor Network Traversal:"
+        );
 
         while (!queue.isEmpty()) {
 
-            String current = queue.poll();
+            String current =
+                    queue.poll();
 
-            System.out.print(current + " ");
+            System.out.print(
+                    current + " "
+            );
 
-            for (String neighbour : graph.get(current)) {
+            for (
+                    String neighbour :
+                    graph.get(current)
+            ) {
 
                 if (!visited.contains(neighbour)) {
 
