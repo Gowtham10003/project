@@ -1,57 +1,53 @@
 # Disaster Early-Warning Agent
 
-## How to Run the Project
+## 1. How to Run
 
-### 1. Clone the Repository
+### Step 1: Clone the Repository
 
-```bash
+Open PowerShell or Command Prompt:
+
+```powershell
 git clone https://github.com/Gowtham10003/project.git
 cd project
 ```
 
-### 2. Open the Backend Folder
+If the project is inside the `DWA` folder:
 
-```bash
-cd apk
+```powershell
+cd DWA
 ```
 
-The `apk` folder contains the Java backend, Python risk classifier, sensor classes, and API server.
+### Step 2: Requirements
 
-### 3. Check Requirements
+Make sure the following are installed:
 
-Make sure Java and Python are installed.
+- Java JDK
+- Python 3
+- Git
+- Web browser
 
-```bash
+Check the installations:
+
+```powershell
 java -version
 javac -version
 python --version
+git --version
 ```
 
-### 4. Compile the Java Files
+### Step 3: Run the Java Backend
 
-```bash
+Open PowerShell:
+
+```powershell
+cd apk
 javac *.java
+java Main
 ```
 
-### 5. Start the Java API Server
+The Java backend starts the HTTP API server.
 
-```bash
-java ApiServer
-```
-
-The Java API server runs at:
-
-```text
-http://localhost:8080
-```
-
-You can test the API using:
-
-```text
-http://localhost:8080/api/health
-```
-
-and:
+API endpoint:
 
 ```text
 http://localhost:8080/api/status
@@ -59,182 +55,98 @@ http://localhost:8080/api/status
 
 Keep this terminal running.
 
-### 6. Start the Frontend
+### Step 4: Run the Frontend
 
-Open a second terminal.
+Open a **second PowerShell window** and go to the frontend folder:
 
-Go to the frontend folder:
-
-```bash
-cd ../frontend
-```
-
-Start the frontend using Python:
-
-```bash
+```powershell
+cd frontend
 python -m http.server 5500
 ```
 
-### 7. Open the Dashboard
-
-Open a web browser and visit:
+Open the dashboard:
 
 ```text
 http://localhost:5500
 ```
 
-The Disaster Early-Warning dashboard will now be displayed.
+### Step 5: Use the Dashboard
+
+After opening the dashboard:
+
+1. Java provides the monitoring data.
+2. Temperature, rainfall and wind speed are displayed.
+3. The risk score and risk level are displayed.
+4. The dashboard refreshes automatically every 5 seconds.
+5. A warning is shown when the system detects a high-risk condition.
+
+> **Note:** The project uses simulated/demo environmental data. Physical sensors are not required.
 
 ---
 
-# Project Flow
+## 2. Project Overview
+
+The **Disaster Early-Warning Agent** is a Java and Python based demonstration system for monitoring environmental conditions and identifying possible disaster risk.
+
+The project combines:
+
+- Java sensor modeling
+- Sensor-network graph
+- Rule-based processing
+- Python risk classification
+- CSV data exchange
+- Java HTTP API
+- HTML/CSS/JavaScript dashboard
+
+---
+
+## 3. Project Flow
 
 ```text
-                    START
-                      |
-                      v
-             +------------------+
-             | Simulated Sensors |
-             | S1, S2, S3       |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | Sensor Network   |
-             | Graph + BFS      |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | Sensor Readings  |
-             |                  |
-             | Temperature      |
-             | Rainfall         |
-             | Water Level      |
-             | Wind Speed       |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | Find Critical    |
-             | Sensor           |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | Java Rule Engine |
-             | Threshold Check  |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | sensor_data.csv  |
-             | Java -> Python   |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | Python Risk      |
-             | Classifier       |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | Calculate Risk   |
-             | Score            |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | Risk Level       |
-             | LOW / MEDIUM     |
-             | HIGH / DANGER    |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | Alert System     |
-             +--------+---------+
-                      |
-                      v
-             +------------------+
-             | Java API Server  |
-             | /api/status      |
-             +--------+---------+
-                      |
-                      | JSON
-                      v
-             +------------------+
-             | Web Dashboard    |
-             | HTML/CSS/JS      |
-             +------------------+
+Simulated Environmental Data
+            ↓
+       Java Sensors
+            ↓
+    Sensor Network Graph
+            ↓
+     Java Rule Engine
+            ↓
+      sensor_data.csv
+            ↓
+   Python Risk Classifier
+            ↓
+      Risk Score/Level
+            ↓
+       Java API Server
+            ↓
+      Web Dashboard
+            ↓
+        Warning
 ```
 
-## Detailed Flow
+---
 
-### 1. Sensor Simulation
+## 4. How It Works
 
-The Java backend generates simulated environmental readings for multiple sensors.
+### Java
 
-The monitored parameters are:
+Java manages the sensor information and disaster-monitoring logic.
 
-- Temperature
-- Rainfall
-- Water Level
-- Wind Speed
+It:
 
-> Physical sensors are not currently connected. The project uses simulated sensor data.
+- Creates sensor data.
+- Represents the sensor network.
+- Applies rule-based processing.
+- Exports data to CSV.
+- Runs the HTTP API server.
 
-### 2. Sensor Network
+### Python
 
-The sensors are represented as a graph.
+Python acts as the risk classifier.
 
-Example:
+It reads the sensor data and calculates an overall risk score.
 
-```text
-S1 -------- S2 -------- S3
-```
-
-Breadth-First Search (BFS) is used to traverse the sensor network.
-
-### 3. Critical Sensor Selection
-
-The system calculates a risk score for each simulated sensor and selects the sensor with the highest risk score as the critical sensor.
-
-### 4. Java Rule Engine
-
-The Java rule engine checks environmental values against predefined thresholds.
-
-Examples:
-
-```text
-High Temperature
-Heavy Rainfall
-Critical Water Level
-Very High Wind Speed
-```
-
-### 5. CSV Data Export
-
-The selected sensor data is written to:
-
-```text
-sensor_data.csv
-```
-
-This file acts as the data exchange mechanism between Java and Python.
-
-### 6. Python Risk Classification
-
-The Java application executes:
-
-```text
-risk_classifier.py
-```
-
-Python reads the sensor data from the CSV file, calculates the risk score, and determines the overall risk level.
-
-The possible risk levels are:
+The result is classified as:
 
 ```text
 LOW
@@ -243,93 +155,61 @@ HIGH
 DANGER
 ```
 
-Python returns the result to Java in the form:
-
-```text
-RISK=HIGH
-```
-
-### 7. Alert Generation
-
-Java receives the risk level from Python and generates the corresponding alert.
-
-```text
-LOW     -> Normal
-MEDIUM  -> Moderate disaster risk
-HIGH    -> High disaster risk warning
-DANGER  -> Emergency alert
-```
-
-### 8. API Communication
-
-`ApiServer.java` exposes the processed sensor information through:
-
-```text
-GET /api/status
-```
-
-The API returns JSON data containing:
-
-- Sensor ID
-- Location
-- Temperature
-- Rainfall
-- Water Level
-- Wind Speed
-- Risk Score
-- Risk Level
-
-### 9. Web Dashboard
+### Web Dashboard
 
 The frontend is built using:
 
-```text
-HTML + CSS + JavaScript
-```
+- HTML
+- CSS
+- JavaScript
 
-JavaScript requests data from the Java API and displays the current sensor information and risk status on the dashboard.
+It communicates with the Java API and displays the latest monitoring information.
 
-## Complete Data Flow
+The dashboard automatically refreshes every **5 seconds**.
 
-```text
-Simulated Sensor Data
-        |
-        v
-   Java Sensor
-        |
-        v
- Sensor Network + BFS
-        |
-        v
-Critical Sensor Selection
-        |
-        v
- Java Rule Engine
-        |
-        v
- sensor_data.csv
-        |
-        v
- Python Classifier
-        |
-        v
- Risk Score + Risk Level
-        |
-        v
- Java Alert System
-        |
-        v
- Java API Server
-        |
-        v
- JSON Response
-        |
-        v
- Web Dashboard
-```
+---
 
-## One-Line Project Flow
+## 5. Project Structure
 
 ```text
-Simulated Sensors -> Java -> Rule Engine -> CSV -> Python -> Risk Level -> Alert -> API -> Web Dashboard
+DWA/
+├── apk/
+│   ├── ApiServer.java
+│   ├── DisasterAgent.java
+│   ├── Main.java
+│   ├── Sensor.java
+│   ├── SensorNetwork.java
+│   ├── risk_classifier.py
+│   └── sensor_data.csv
+│
+└── frontend/
+    ├── index.html
+    ├── style.css
+    └── script.js
 ```
+
+---
+
+## 6. Main Features
+
+- Environmental sensor monitoring
+- Sensor-network graph representation
+- Rule-based risk analysis
+- Java and Python integration
+- CSV-based data exchange
+- Automatic risk classification
+- HTTP API
+- Web-based monitoring dashboard
+- Risk alerts
+- Monitoring history
+- Simulated data for demonstration
+
+---
+
+## 7. Important Note
+
+This is an **academic demonstration/prototype**.
+
+The project currently uses simulated environmental data instead of physical IoT sensors or live external data.
+
+The same architecture can later be connected to real sensors and live data sources.
