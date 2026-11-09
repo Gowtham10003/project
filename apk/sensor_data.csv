@@ -1,2 +1,11 @@
-temperature,rainfall,windSpeed
-38.0,15.0,45.0
+sensor_id,location,temperature_c,rainfall_mm,wind_speed_kmh,water_level_cm,weather,java_rule_score,java_rule_level
+1,"Residential Area",28.01,0.97,18.87,16.66,"Clear",0,LOW
+2,"Riverbank",28.93,3.49,28.71,150.00,"Clear",3,MEDIUM
+3,"School Campus",29.87,0.64,33.12,7.04,"Clear",0,LOW
+4,"Hospital",30.85,0.00,39.33,4.66,"Clear",0,LOW
+5,"Railway Station",31.79,0.00,46.34,6.93,"Clear",1,LOW
+6,"Bus Station",29.21,0.00,17.89,0.06,"Clear",0,LOW
+7,"Highway",28.77,0.61,25.70,11.64,"Clear",0,LOW
+8,"Industrial Area",29.87,1.48,32.77,0.16,"Clear",0,LOW
+9,"Agricultural Field",30.90,0.99,42.41,149.96,"Clear",4,MEDIUM
+10,"Dam",32.00,1.59,49.26,150.00,"Clear",4,MEDIUM

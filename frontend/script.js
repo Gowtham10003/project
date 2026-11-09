@@ -1,991 +1,567 @@
-// ==========================================
-// DISASTER EARLY-WARNING AGENT
-// FRONTEND CONTROLLER
-// ==========================================
 
+/* =====================================================
+   DISASTER EARLY-WARNING AGENT
+   Frontend controller for three sensor locations
+   ===================================================== */
 
-// ==========================================
-// CONFIGURATION
-// ==========================================
-
-const API_URL =
-    "http://localhost:8080/api/status";
-
-const UPDATE_INTERVAL =
-    5000;
-
-
-// ==========================================
-// STATE
-// ==========================================
+const API_URL = "http://localhost:8080/api/status";
+const UPDATE_INTERVAL = 5000;
 
 let monitoring = false;
-
 let monitoringInterval = null;
-
 let requestInProgress = false;
-
 let historyData = [];
+let activityData = [];
 
-const MAX_HISTORY = 10;
+const MAX_HISTORY = 12;
+const MAX_ACTIVITY = 8;
 
+const $ = (id) => document.getElementById(id);
 
-// ==========================================
-// DOM ELEMENTS
-// ==========================================
+/* ---------------- DOM ELEMENTS ---------------- */
 
-const startBtn =
-    document.getElementById("startBtn");
+const startBtn = $("startBtn");
+const stopBtn = $("stopBtn");
+const resetBtn = $("resetBtn");
 
-const stopBtn =
-    document.getElementById("stopBtn");
+const systemStatus = $("systemStatus");
+const lastUpdate = $("lastUpdate");
 
-const resetBtn =
-    document.getElementById("resetBtn");
+const alertBanner = $("alertBanner");
+const alertTitle = $("alertTitle");
+const alertMessage = $("alertMessage");
 
+const locationsGrid = $("locationsGrid");
+const overallRisk = $("overallRisk");
+const averageScore = $("averageScore");
+const hazardCount = $("hazardCount");
 
-const temperature =
-    document.getElementById("temperature");
+const bfsOrder = $("bfsOrder");
+const historyBody = $("historyBody");
+const activityList = $("activityList");
 
-const rainfall =
-    document.getElementById("rainfall");
+/* ---------------- EVENT LISTENERS ---------------- */
 
-const windSpeed =
-    document.getElementById("windSpeed");
+startBtn?.addEventListener("click", startMonitoring);
+stopBtn?.addEventListener("click", stopMonitoring);
+resetBtn?.addEventListener("click", resetDashboard);
 
+if (stopBtn) stopBtn.disabled = true;
 
-const riskLevel =
-    document.getElementById("riskLevel");
-
-const riskScore =
-    document.getElementById("riskScore");
-
-const riskProgress =
-    document.getElementById("riskProgress");
-
-const riskDescription =
-    document.getElementById(
-        "riskDescription"
-    );
-
-
-const sensorId =
-    document.getElementById("sensorId");
-
-const sensorLocation =
-    document.getElementById(
-        "sensorLocation"
-    );
-
-
-const scenarioNumber =
-    document.getElementById(
-        "scenarioNumber"
-    );
-
-
-const dataSource =
-    document.getElementById(
-        "dataSource"
-    );
-
-
-const systemStatus =
-    document.getElementById(
-        "systemStatus"
-    );
-
-
-const systemAlert =
-    document.getElementById(
-        "systemAlert"
-    );
-
-
-const hazardValue =
-    document.getElementById(
-        "hazardValue"
-    );
-
-
-const hazardStatus =
-    document.getElementById(
-        "hazardStatus"
-    );
-
-
-const riskIcon =
-    document.getElementById(
-        "riskIcon"
-    );
-
-
-const lastUpdate =
-    document.getElementById(
-        "lastUpdate"
-    );
-
-
-const historyBody =
-    document.getElementById(
-        "historyBody"
-    );
-
-
-const currentTime =
-    document.getElementById(
-        "currentTime"
-    );
-
-
-// ==========================================
-// START MONITORING
-// ==========================================
+/* ---------------- START MONITORING ---------------- */
 
 function startMonitoring() {
-
-    if (monitoring) {
-        return;
-    }
-
+    if (monitoring) return;
 
     monitoring = true;
 
+    if (startBtn) startBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = false;
 
-    startBtn.disabled = true;
-
-    stopBtn.disabled = false;
-
-
-    setSystemOnline();
-
+    setSystemStatus(true);
 
     showAlert(
         "normal",
-        "Monitoring started. Demo sensor data will update every 5 seconds."
+        "Monitoring started. Three simulated locations update every 5 seconds."
     );
 
-
-    // Get first data immediately
+    addActivity("Monitoring started in demo mode.");
 
     fetchSensorData();
 
-
-    // Then update every 5 seconds
-
-    monitoringInterval =
-        setInterval(
-            fetchSensorData,
-            UPDATE_INTERVAL
-        );
-}
-
-
-// ==========================================
-// STOP MONITORING
-// ==========================================
-
-function stopMonitoring() {
-
-    monitoring = false;
-
-
-    if (monitoringInterval) {
-
-        clearInterval(
-            monitoringInterval
-        );
-
-        monitoringInterval = null;
-    }
-
-
-    startBtn.disabled = false;
-
-    stopBtn.disabled = true;
-
-
-    systemStatus.textContent =
-        "● SYSTEM PAUSED";
-
-    systemStatus.className =
-        "system-status offline";
-
-
-    showAlert(
-        "warning",
-        "Monitoring stopped by user."
+    monitoringInterval = setInterval(
+        fetchSensorData,
+        UPDATE_INTERVAL
     );
 }
 
+/* ---------------- STOP MONITORING ---------------- */
 
-// ==========================================
-// FETCH DATA
-// ==========================================
+function stopMonitoring() {
+    monitoring = false;
 
-async function fetchSensorData() {
-
-    if (
-        requestInProgress ||
-        !monitoring
-    ) {
-        return;
+    if (monitoringInterval !== null) {
+        clearInterval(monitoringInterval);
+        monitoringInterval = null;
     }
 
+    if (startBtn) startBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = true;
+
+    setSystemStatus(false);
+
+    showAlert(
+        "warning",
+        "Monitoring paused. No new readings will be requested."
+    );
+
+    addActivity("Monitoring paused by user.");
+}
+
+/* ---------------- RESET DASHBOARD ---------------- */
+
+function resetDashboard() {
+    stopMonitoring();
+
+    historyData = [];
+    activityData = [];
+
+    if (locationsGrid) {
+        locationsGrid.innerHTML =
+            '<div class="empty-state">' +
+            'Press Start Monitoring to load the three locations.' +
+            '</div>';
+    }
+
+    if (overallRisk) {
+        overallRisk.textContent = "WAITING";
+        overallRisk.className = "";
+    }
+
+    if (averageScore) averageScore.textContent = "0 / 10";
+    if (hazardCount) hazardCount.textContent = "0";
+
+    if (lastUpdate) lastUpdate.textContent = "Not yet updated";
+
+    if (historyBody) {
+        historyBody.innerHTML =
+            '<tr><td colspan="4">No history yet.</td></tr>';
+    }
+
+    if (activityList) {
+        activityList.innerHTML =
+            "<li>Monitoring has not started.</li>";
+    }
+
+    if (alertBanner) {
+        alertBanner.className = "alert-banner hidden";
+    }
+
+    ["nodeS1", "nodeS2", "nodeS3"].forEach((id) => {
+        const node = $(id);
+
+        if (node) {
+            node.setAttribute("class", "node low");
+        }
+    });
+
+    addActivity("Dashboard reset.");
+}
+
+/* ---------------- SYSTEM STATUS ---------------- */
+
+function setSystemStatus(online) {
+    if (!systemStatus) return;
+
+    systemStatus.textContent = online
+        ? "SYSTEM ONLINE"
+        : "SYSTEM PAUSED";
+
+    systemStatus.className =
+        "status-pill " + (online ? "online" : "offline");
+}
+
+/* ---------------- FETCH SENSOR DATA ---------------- */
+
+async function fetchSensorData() {
+    if (requestInProgress || !monitoring) return;
 
     requestInProgress = true;
 
-
     try {
-
-        const response =
-            await fetch(
-                API_URL +
-                "?t=" +
-                Date.now()
-            );
-
+        const response = await fetch(
+            API_URL + "?t=" + Date.now(),
+            { cache: "no-store" }
+        );
 
         if (!response.ok) {
+            throw new Error("API HTTP error: " + response.status);
+        }
 
+        const data = await response.json();
+
+        if (
+            data.status !== "success" ||
+            !Array.isArray(data.locations)
+        ) {
             throw new Error(
-                "API returned HTTP " +
-                response.status
+                "Invalid API response. Expected a locations array."
             );
         }
 
-
-        const data =
-            await response.json();
-
+        if (data.locations.length !== 3) {
+            throw new Error(
+                "Expected exactly three locations from the Java API."
+            );
+        }
 
         updateDashboard(data);
-
+        setSystemStatus(true);
 
     } catch (error) {
+        console.error("Monitoring API error:", error);
 
-        console.error(
-            "Dashboard API error:",
-            error
-        );
-
-
-        setSystemOffline();
-
+        setSystemStatus(false);
 
         showAlert(
             "danger",
-            "Unable to connect to Java API. Make sure the Java server is running on port 8080."
+            "Cannot connect to the Java API. Start the backend on port 8080 and try again."
         );
 
+        addActivity("Failed to retrieve sensor data.");
 
     } finally {
-
         requestInProgress = false;
     }
 }
 
-
-// ==========================================
-// UPDATE DASHBOARD
-// ==========================================
+/* ---------------- UPDATE DASHBOARD ---------------- */
 
 function updateDashboard(data) {
+    const locations = data.locations;
 
-    if (
-        !data ||
-        data.status !== "success"
-    ) {
-        return;
+    renderLocations(locations);
+    updateSummary(locations);
+    updateNetwork(locations, data.bfsTraversal);
+    recordHistory(locations);
+
+    if (lastUpdate) {
+        lastUpdate.textContent = new Date().toLocaleTimeString();
     }
 
+    addActivity("Received environmental readings for three locations.");
 
-    // -------------------------------
-    // ENVIRONMENT
-    // -------------------------------
-
-    temperature.textContent =
-        Number(data.temperature)
-            .toFixed(1) +
-        " °C";
-
-
-    rainfall.textContent =
-        Number(data.rainfall)
-            .toFixed(1) +
-        " mm";
-
-
-    windSpeed.textContent =
-        Number(data.windSpeed)
-            .toFixed(1) +
-        " km/h";
-
-
-    // -------------------------------
-    // SENSOR
-    // -------------------------------
-
-    sensorId.textContent =
-        data.sensorId;
-
-
-    sensorLocation.textContent =
-        data.location;
-
-
-    // -------------------------------
-    // SCENARIO
-    // -------------------------------
-
-    scenarioNumber.textContent =
-        "Scenario " +
-        data.scenario;
-
-
-    dataSource.textContent =
-        data.source ||
-        "SIMULATED DATA";
-
-
-    // -------------------------------
-    // RISK
-    // -------------------------------
-
-    const risk =
-        String(data.risk)
-            .toUpperCase();
-
-
-    const score =
-        Number(data.riskScore);
-
-
-    riskLevel.textContent =
-        risk;
-
-
-    riskScore.textContent =
-        score;
-
-
-    updateRiskVisual(
-        risk,
-        score
+    const riskyLocations = locations.filter(
+        (location) =>
+            ["HIGH", "DANGER"].includes(normalizeRisk(location.risk))
     );
 
+    if (riskyLocations.length > 0) {
+        const highest = riskyLocations.reduce((a, b) =>
+            riskRank(b.risk) > riskRank(a.risk) ? b : a
+        );
 
-    // -------------------------------
-    // HAZARD
-    // -------------------------------
+        showAlert(
+            "danger",
+            highest.location +
+            ": " + normalizeRisk(highest.risk) +
+            " risk. Possible hazard: " +
+            (highest.possibleDisaster || "Unknown") +
+            "."
+        );
 
-    updateHazard(
-        data.hazard,
-        risk
-    );
+        addActivity(
+            "Risk alert for " + highest.location +
+            ": " + normalizeRisk(highest.risk) + "."
+        );
 
+    } else if (
+        locations.some(
+            (location) => normalizeRisk(location.risk) === "MEDIUM"
+        )
+    ) {
+        showAlert(
+            "warning",
+            "Elevated environmental conditions detected. Monitor the affected locations."
+        );
 
-    // -------------------------------
-    // ALERT
-    // -------------------------------
-
-    updateAlert(risk);
-
-
-    // -------------------------------
-    // TIME
-    // -------------------------------
-
-    const now =
-        new Date();
-
-
-    lastUpdate.textContent =
-        "Last update: " +
-        now.toLocaleTimeString();
-
-
-    // -------------------------------
-    // HISTORY
-    // -------------------------------
-
-    addHistory(data);
+    } else {
+        showAlert(
+            "normal",
+            "No major risk indicators in the current simulated readings."
+        );
+    }
 }
 
+/* ---------------- LOCATION CARDS ---------------- */
 
-// ==========================================
-// RISK VISUAL
-// ==========================================
+function renderLocations(locations) {
+    if (!locationsGrid) return;
 
-function updateRiskVisual(
-    risk,
-    score
-) {
+    locationsGrid.innerHTML = "";
 
-    const percentage =
-        Math.min(
-            100,
-            Math.max(
-                0,
-                (score / 9) * 100
+    locations.forEach((location, index) => {
+        const risk = normalizeRisk(location.risk);
+
+        const card = document.createElement("article");
+        card.className = "location-card";
+
+        const header = document.createElement("div");
+        header.className = "location-head";
+
+        const number = document.createElement("span");
+        number.className = "location-number";
+        number.textContent = String(index + 1);
+
+        const title = document.createElement("h3");
+        title.textContent =
+            location.location || "Location " + (index + 1);
+
+        const badge = document.createElement("span");
+        badge.className = "risk-badge risk-" + risk;
+        badge.textContent = risk;
+
+        header.append(number, title, badge);
+
+        const body = document.createElement("div");
+        body.className = "location-body";
+
+        const metrics = document.createElement("div");
+        metrics.className = "metrics";
+
+        metrics.append(
+            createMetric(
+                "Temperature",
+                formatNumber(location.temperature, 1) + " °C"
+            ),
+            createMetric(
+                "Precipitation",
+                formatNumber(location.rainfall, 1) + " mm"
+            ),
+            createMetric(
+                "Wind speed",
+                formatNumber(location.windSpeed, 1) + " km/h"
+            ),
+            createMetric(
+                "Humidity",
+                formatNumber(location.humidity, 0) + "%"
+            ),
+            createMetric(
+                "Water level",
+                formatNumber(location.waterLevel, 1) + " m"
+            ),
+            createMetric(
+                "Risk score",
+                formatNumber(location.riskScore, 0) + " / 10"
             )
         );
 
+        const disasterBox = document.createElement("div");
+        disasterBox.className = "disaster-box";
 
-    riskProgress.style.width =
-        percentage + "%";
+        const disasterTitle = document.createElement("strong");
+        disasterTitle.textContent = "Possible disaster";
 
+        const disasterText = document.createElement("span");
+        disasterText.textContent =
+            location.possibleDisaster ||
+            "No specific hazard identified";
 
-    // Remove previous classes
+        disasterBox.append(disasterTitle, disasterText);
 
-    riskLevel.classList.remove(
-        "risk-low",
-        "risk-medium",
-        "risk-high",
-        "risk-danger"
-    );
+        const explanation = document.createElement("p");
+        explanation.className = "explanation";
 
+        const explanationTitle = document.createElement("strong");
+        explanationTitle.textContent = "Contributing factors: ";
 
-    riskProgress.classList.remove(
-        "risk-low",
-        "risk-medium",
-        "risk-high",
-        "risk-danger"
-    );
-
-
-    switch (risk) {
-
-        case "LOW":
-
-            riskLevel.classList.add(
-                "risk-low"
-            );
-
-            riskProgress.classList.add(
-                "risk-low"
-            );
-
-            riskIcon.textContent =
-                "✓";
-
-            riskDescription.textContent =
-                "Normal conditions";
-
-            break;
-
-
-        case "MEDIUM":
-
-            riskLevel.classList.add(
-                "risk-medium"
-            );
-
-            riskProgress.classList.add(
-                "risk-medium"
-            );
-
-            riskIcon.textContent =
-                "!";
-
-            riskDescription.textContent =
-                "Moderate risk";
-
-            break;
-
-
-        case "HIGH":
-
-            riskLevel.classList.add(
-                "risk-high"
-            );
-
-            riskProgress.classList.add(
-                "risk-high"
-            );
-
-            riskIcon.textContent =
-                "⚠";
-
-            riskDescription.textContent =
-                "High disaster risk";
-
-            break;
-
-
-        case "DANGER":
-
-            riskLevel.classList.add(
-                "risk-danger"
-            );
-
-            riskProgress.classList.add(
-                "risk-danger"
-            );
-
-            riskIcon.textContent =
-                "!!";
-
-            riskDescription.textContent =
-                "Emergency conditions";
-
-            break;
-    }
-}
-
-
-// ==========================================
-// HAZARD
-// ==========================================
-
-function updateHazard(
-    hazard,
-    risk
-) {
-
-    hazardValue.textContent =
-        hazard || "Normal";
-
-
-    hazardStatus.classList.remove(
-        "normal",
-        "warning",
-        "danger"
-    );
-
-
-    if (risk === "LOW") {
-
-        hazardStatus.classList.add(
-            "normal"
+        explanation.append(
+            explanationTitle,
+            document.createTextNode(
+                location.explanation || "No major warning indicators"
+            )
         );
 
-        hazardStatus.textContent =
-            "No immediate threat";
+        body.append(metrics, disasterBox, explanation);
+        card.append(header, body);
+        locationsGrid.appendChild(card);
+    });
+}
 
-    } else if (
-        risk === "MEDIUM"
-    ) {
+/* ---------------- CREATE METRIC ---------------- */
 
-        hazardStatus.classList.add(
-            "warning"
+function createMetric(label, value) {
+    const metric = document.createElement("div");
+    metric.className = "metric";
+
+    const caption = document.createElement("span");
+    caption.textContent = label;
+
+    const number = document.createElement("strong");
+    number.textContent = value;
+
+    metric.append(caption, number);
+
+    return metric;
+}
+
+/* ---------------- SUMMARY CARDS ---------------- */
+
+function updateSummary(locations) {
+    if (!locations.length) return;
+
+    const highest = locations.reduce((a, b) =>
+        riskRank(b.risk) > riskRank(a.risk) ? b : a
+    );
+
+    const totalScore = locations.reduce(
+        (sum, location) => sum + Number(location.riskScore || 0),
+        0
+    );
+
+    const average = totalScore / locations.length;
+
+    const hazardLocations = locations.filter((location) => {
+        const hazard = String(location.possibleDisaster || "");
+
+        return (
+            hazard !== "" &&
+            !hazard.toLowerCase().includes("no specific hazard")
         );
+    }).length;
 
-        hazardStatus.textContent =
-            "Monitor conditions";
+    if (overallRisk) {
+        overallRisk.textContent = normalizeRisk(highest.risk);
+        overallRisk.className =
+            "risk-" + normalizeRisk(highest.risk);
+    }
 
-    } else {
+    if (averageScore) {
+        averageScore.textContent = average.toFixed(1) + " / 10";
+    }
 
-        hazardStatus.classList.add(
-            "danger"
-        );
-
-        hazardStatus.textContent =
-            "Immediate attention required";
+    if (hazardCount) {
+        hazardCount.textContent = String(hazardLocations);
     }
 }
 
+/* ---------------- SENSOR GRAPH AND BFS ---------------- */
 
-// ==========================================
-// ALERT
-// ==========================================
+function updateNetwork(locations, traversal) {
+    locations.forEach((location, index) => {
+        const node = $("nodeS" + (index + 1));
 
-function updateAlert(risk) {
-
-    switch (risk) {
-
-        case "LOW":
-
-            showAlert(
-                "normal",
-                "✓ NORMAL: Environmental conditions are within safe limits."
+        if (node) {
+            node.setAttribute(
+                "class",
+                "node " + normalizeRisk(location.risk).toLowerCase()
             );
+        }
+    });
 
-            break;
-
-
-        case "MEDIUM":
-
-            showAlert(
-                "warning",
-                "⚠ WARNING: Moderate disaster risk detected. Continue monitoring."
-            );
-
-            break;
-
-
-        case "HIGH":
-
-            showAlert(
-                "high",
-                "⚠ HIGH RISK: Significant disaster risk detected."
-            );
-
-            break;
-
-
-        case "DANGER":
-
-            showAlert(
-                "danger",
-                "🚨 EMERGENCY: Dangerous environmental conditions detected. Immediate disaster response may be required."
-            );
-
-            break;
+    if (bfsOrder) {
+        bfsOrder.textContent = Array.isArray(traversal)
+            ? traversal.join(" → ")
+            : "S1 → S2 → S3";
     }
 }
 
+/* ---------------- MONITORING HISTORY ---------------- */
 
-// ==========================================
-// SHOW ALERT
-// ==========================================
+function recordHistory(locations) {
+    const timestamp = new Date().toLocaleTimeString();
 
-function showAlert(
-    type,
-    message
-) {
+    locations.forEach((location) => {
+        historyData.unshift({
+            time: timestamp,
+            location: location.location || "Unknown",
+            risk: normalizeRisk(location.risk),
+            hazard: location.possibleDisaster || "Not identified"
+        });
+    });
 
-    systemAlert.className =
-        "system-alert " +
-        type;
-
-
-    systemAlert.textContent =
-        message;
-}
-
-
-// ==========================================
-// HISTORY
-// ==========================================
-
-function addHistory(data) {
-
-    const now =
-        new Date();
-
-
-    const item = {
-
-        time:
-            now.toLocaleTimeString(),
-
-        scenario:
-            data.scenario,
-
-        sensor:
-            data.sensorId,
-
-        temperature:
-            Number(data.temperature),
-
-        rainfall:
-            Number(data.rainfall),
-
-        wind:
-            Number(data.windSpeed),
-
-        score:
-            Number(data.riskScore),
-
-        risk:
-            String(data.risk)
-                .toUpperCase()
-    };
-
-
-    historyData.unshift(item);
-
-
-    if (
-        historyData.length >
-        MAX_HISTORY
-    ) {
-
-        historyData =
-            historyData.slice(
-                0,
-                MAX_HISTORY
-            );
-    }
-
+    historyData = historyData.slice(0, MAX_HISTORY);
 
     renderHistory();
 }
 
-
-// ==========================================
-// RENDER HISTORY
-// ==========================================
-
 function renderHistory() {
+    if (!historyBody) return;
 
-    if (
-        historyData.length === 0
-    ) {
+    historyBody.innerHTML = "";
 
-        historyBody.innerHTML = `
-
-            <tr>
-
-                <td
-                    colspan="8"
-                    class="empty-row"
-                >
-                    No monitoring data yet.
-                </td>
-
-            </tr>
-
-        `;
-
+    if (historyData.length === 0) {
+        historyBody.innerHTML =
+            '<tr><td colspan="4">No history yet.</td></tr>';
         return;
     }
 
+    historyData.forEach((item) => {
+        const row = document.createElement("tr");
 
-    historyBody.innerHTML =
-        historyData.map(
-            item => `
+        const timeCell = document.createElement("td");
+        timeCell.textContent = item.time;
 
-                <tr>
+        const locationCell = document.createElement("td");
+        locationCell.textContent = item.location;
 
-                    <td>
-                        ${item.time}
-                    </td>
+        const riskCell = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = "risk-badge risk-" + item.risk;
+        badge.textContent = item.risk;
+        riskCell.appendChild(badge);
 
-                    <td>
-                        #${item.scenario}
-                    </td>
+        const hazardCell = document.createElement("td");
+        hazardCell.textContent = item.hazard;
 
-                    <td>
-                        ${item.sensor}
-                    </td>
-
-                    <td>
-                        ${item.temperature.toFixed(1)} °C
-                    </td>
-
-                    <td>
-                        ${item.rainfall.toFixed(1)} mm
-                    </td>
-
-                    <td>
-                        ${item.wind.toFixed(1)} km/h
-                    </td>
-
-                    <td>
-                        ${item.score}/9
-                    </td>
-
-                    <td>
-                        <span
-                            class="table-risk ${getRiskClass(item.risk)}"
-                        >
-                            ${item.risk}
-                        </span>
-                    </td>
-
-                </tr>
-
-            `
-        ).join("");
+        row.append(timeCell, locationCell, riskCell, hazardCell);
+        historyBody.appendChild(row);
+    });
 }
 
+/* ---------------- SYSTEM ACTIVITY ---------------- */
 
-// ==========================================
-// RISK CLASS
-// ==========================================
-
-function getRiskClass(risk) {
-
-    switch (risk) {
-
-        case "LOW":
-            return "low";
-
-        case "MEDIUM":
-            return "medium";
-
-        case "HIGH":
-            return "high";
-
-        case "DANGER":
-            return "danger";
-
-        default:
-            return "low";
-    }
-}
-
-
-// ==========================================
-// SYSTEM ONLINE
-// ==========================================
-
-function setSystemOnline() {
-
-    systemStatus.textContent =
-        "● SYSTEM ONLINE";
-
-    systemStatus.className =
-        "system-status online";
-}
-
-
-// ==========================================
-// SYSTEM OFFLINE
-// ==========================================
-
-function setSystemOffline() {
-
-    systemStatus.textContent =
-        "● SYSTEM OFFLINE";
-
-    systemStatus.className =
-        "system-status offline";
-}
-
-
-// ==========================================
-// RESET
-// ==========================================
-
-function resetDashboard() {
-
-    stopMonitoring();
-
-
-    historyData = [];
-
-
-    temperature.textContent =
-        "-- °C";
-
-
-    rainfall.textContent =
-        "-- mm";
-
-
-    windSpeed.textContent =
-        "-- km/h";
-
-
-    riskLevel.textContent =
-        "READY";
-
-
-    riskLevel.classList.remove(
-        "risk-low",
-        "risk-medium",
-        "risk-high",
-        "risk-danger"
+function addActivity(message) {
+    activityData.unshift(
+        new Date().toLocaleTimeString() + " — " + message
     );
 
+    activityData = activityData.slice(0, MAX_ACTIVITY);
 
-    riskScore.textContent =
-        "--";
+    if (!activityList) return;
 
+    activityList.innerHTML = "";
 
-    riskProgress.style.width =
-        "0%";
-
-
-    riskDescription.textContent =
-        "Waiting for monitoring...";
-
-
-    riskIcon.textContent =
-        "?";
-
-
-    sensorId.textContent =
-        "--";
-
-
-    sensorLocation.textContent =
-        "Waiting for data";
-
-
-    scenarioNumber.textContent =
-        "Waiting";
-
-
-    dataSource.textContent =
-        "SIMULATED DATA";
-
-
-    hazardValue.textContent =
-        "Normal";
-
-
-    hazardStatus.className =
-        "hazard-status normal";
-
-
-    hazardStatus.textContent =
-        "No immediate threat";
-
-
-    lastUpdate.textContent =
-        "Last update: --";
-
-
-    systemAlert.className =
-        "system-alert hidden";
-
-
-    renderHistory();
+    activityData.forEach((activity) => {
+        const item = document.createElement("li");
+        item.textContent = activity;
+        activityList.appendChild(item);
+    });
 }
 
+/* ---------------- ALERT BANNER ---------------- */
 
-// ==========================================
-// CLOCK
-// ==========================================
+function showAlert(type, message) {
+    if (!alertBanner || !alertMessage || !alertTitle) return;
 
-function updateClock() {
+    alertBanner.className = "alert-banner " + type;
 
-    const now =
-        new Date();
+    if (type === "danger") {
+        alertTitle.textContent = "RISK ALERT";
+    } else if (type === "warning") {
+        alertTitle.textContent = "MONITOR";
+    } else {
+        alertTitle.textContent = "SYSTEM STATUS";
+    }
 
-
-    currentTime.textContent =
-        now.toLocaleString();
+    alertMessage.textContent = message;
 }
 
+/* ---------------- UTILITIES ---------------- */
 
-setInterval(
-    updateClock,
-    1000
-);
+function normalizeRisk(value) {
+    const risk = String(value || "LOW").toUpperCase();
 
+    return ["LOW", "MEDIUM", "HIGH", "DANGER"].includes(risk)
+        ? risk
+        : "LOW";
+}
 
-updateClock();
+function riskRank(value) {
+    const ranks = {
+        LOW: 0,
+        MEDIUM: 1,
+        HIGH: 2,
+        DANGER: 3
+    };
 
+    return ranks[normalizeRisk(value)];
+}
 
-// ==========================================
-// BUTTON EVENTS
-// ==========================================
+function formatNumber(value, decimals) {
+    const number = Number(value);
 
-startBtn.addEventListener(
-    "click",
-    startMonitoring
-);
-
-
-stopBtn.addEventListener(
-    "click",
-    stopMonitoring
-);
-
-
-resetBtn.addEventListener(
-    "click",
-    resetDashboard
-);
-
-
-// ==========================================
-// INITIAL STATE
-// ==========================================
-
-renderHistory();
+    return Number.isFinite(number)
+        ? number.toFixed(decimals)
+        : "--";
+}
